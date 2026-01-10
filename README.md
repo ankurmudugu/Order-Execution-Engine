@@ -1,30 +1,32 @@
-Order Execution Engine (DEX Router + WebSocket Streaming)
+Order Execution Engine
+
+DEX Router + WebSocket Streaming
 
 A backend order execution engine that processes market orders with automatic DEX routing, real-time WebSocket updates, queue-based concurrency, retry handling, and persistent order storage.
 
-Built using Node.js + TypeScript, Fastify, BullMQ + Redis, PostgreSQL, and a mock DEX router (Raydium / Meteora), designed to be easily extended to real on-chain execution.
+Built using Node.js + TypeScript, Fastify, BullMQ + Redis, and PostgreSQL, with a mock DEX router simulating Raydium and Meteora. The architecture is intentionally designed to be production-ready and easily extensible to real on-chain execution.
 
-Key features include the following :-
+✨ Key Features
 
 Market Order Execution
 
-DEX Routing (Raydium vs Meteora)
+Automatic DEX Routing (Raydium vs Meteora)
 
 Real-time WebSocket Order Status Streaming
 
-Concurrent Order Processing (BullMQ)
+Concurrent Order Processing using BullMQ
 
 Retry Logic with Exponential Backoff
 
-PostgreSQL Persistence for Order History
+PostgreSQL Persistence for order history
 
-Mock DEX Implementation (production-ready architecture)
+Mock DEX Implementation with realistic latency and price variance
 
-High-Level Architecture is as such :-
+🏗 High-Level Architecture
 Client (HTTP + WebSocket)
         |
         v
-Fastify API (POST /execute)
+Fastify API (POST /api/orders/execute)
         |
         v
 Redis + BullMQ Queue
@@ -32,21 +34,20 @@ Redis + BullMQ Queue
         v
 Order Worker (DEX Router)
         |
-        ├── Emits real-time events (EventEmitter)
-        ├── Routes order to best DEX
+        ├── Emits real-time events
+        ├── Compares DEX prices
         ├── Retries on failure
-        └── Updates PostgreSQL
+        └── Persists results to PostgreSQL
 
-Component Responsibilities
+🔧 Component Responsibilities
 Component	Responsibility
-Fastify HTTP API	Accept order requests
-WebSocket Server	Stream order lifecycle updates
-BullMQ + Redis	Queueing, retries, concurrency
-Worker	Routing, execution, state transitions
+Fastify HTTP API	Accepts and validates order requests
+WebSocket Server	Streams order lifecycle updates
+BullMQ + Redis	Queueing, retries, concurrency control
+Worker	DEX routing, execution, state transitions
 PostgreSQL	Durable order storage
-Mock DEX Router	Simulated Raydium/Meteora pricing
-
-Order Lifecycle
+Mock DEX Router	Simulated Raydium / Meteora pricing
+🔄 Order Lifecycle
 
 Each order progresses through the following states:
 
@@ -54,19 +55,20 @@ pending → routing → building → submitted → confirmed
                          ↘
                           failed (after retries)
 
-Status Meaning
+Status Definitions
 Status	Description
 pending	Order received and queued
-routing	Comparing Raydium & Meteora
+routing	Comparing Raydium & Meteora prices
 building	Preparing transaction
-submitted	Sent to network
+submitted	Sent to execution layer
 confirmed	Successfully executed
 failed	Failed after 3 retries
 
-All updates are streamed live via WebSocket.
+📡 All lifecycle updates are streamed live via WebSocket.
 
-API Endpoints
+📡 API Endpoints
 Submit Order
+
 POST /api/orders/execute
 
 Request Body
@@ -97,7 +99,7 @@ Example Messages
   }
 }
 
-Setup Instructions
+⚙️ Setup Instructions
 1. Prerequisites
 
 Node.js v18+
@@ -106,14 +108,14 @@ Redis
 
 PostgreSQL
 
-WSL / Linux / macOS recommended
+Linux / macOS / WSL recommended
 
-2️. Install Dependencies
+2. Install Dependencies
 npm install
 
-3️. Environment Variables
+3. Environment Variables
 
-Create .env (not committed):
+Create a .env file (not committed):
 
 PG_HOST=localhost
 PG_PORT=5432
@@ -122,34 +124,54 @@ PG_PASSWORD=yourpassword
 PG_DATABASE=orders_db
 
 
-Example file provided as .env.example.
+An example file is provided as .env.example.
 
-4️. Start Services
+4. Start Services
 redis-server
-
 npx ts-node src/server.ts
 
-5️. Run Client Demo (5 concurrent orders)
+5. Run Client Demo (5 concurrent orders)
 npx ts-node src/client/testOrderClient.ts
 
-Design Decisions
-I chose market orders because they are executed immediately, do not require price monitoring and to simplify execution guarantees.
-They demonstrate routing concurrency, retires and WebSocket functionality.
+🧠 Design Decisions
+Why Market Orders?
 
-BullMQ was used to provide reliable job retries, backpressure handling, concurrency and redis backed durability.
+Market orders execute immediately and do not require price monitoring. This simplifies execution guarantees while clearly demonstrating:
 
-WebSockets were used to provide low latency and push-based updates.
+Routing logic
 
-Extending to Other Order Types
+Concurrency
+
+Retry handling
+
+WebSocket streaming
+
+Why BullMQ?
+
+BullMQ provides:
+
+Reliable retries
+
+Backpressure handling
+
+Concurrency control
+
+Redis-backed durability
+
+Why WebSockets?
+
+WebSockets enable low-latency, push-based order lifecycle updates, which is essential for trading and execution systems.
+
+🔌 Extending to Other Order Types
 1. Limit Orders
 
-How it would work:
+Approach:
 
 Store limitPrice in PostgreSQL
 
-Periodic worker checks price feeds
+Periodically fetch price feeds
 
-Execute only when price condition met
+Execute only when price condition is met
 
 if (currentPrice <= limitPrice) {
   executeOrder();
@@ -157,21 +179,21 @@ if (currentPrice <= limitPrice) {
 
 2. Sniper Orders (Token Launch)
 
-How it would work:
+Approach:
 
 Subscribe to on-chain events
 
-Detect pool creation / migration
+Detect pool creation or liquidity migration
 
 Trigger execution immediately
 
-Common for:
+Common use cases:
 
 New token launches
 
 Liquidity migration events
 
-Integrating Real Raydium / Meteora SDKs
+🔗 Integrating Real Raydium / Meteora SDKs
 
 The mock router is a drop-in replacement for real SDKs.
 
@@ -190,7 +212,7 @@ const amm = await AmmImpl.create(connection, poolPubkey);
 const quote = amm.getSwapQuote(mint, amountIn, slippage);
 const tx = await amm.swap(wallet, amountIn, minOut);
 
-Required Changes :-
+Required Changes
 
 Replace mock router with SDK calls
 
@@ -200,11 +222,11 @@ Add slippage protection
 
 Use real wallets
 
-Persist txHash
+Persist on-chain txHash
 
-Architecture does not change.
+➡️ The overall architecture remains unchanged.
 
--> Database Schema
+🗄 Database Schema
 CREATE TABLE orders (
   order_id UUID PRIMARY KEY,
   input_mint TEXT,
@@ -219,9 +241,12 @@ CREATE TABLE orders (
   updated_at TIMESTAMP
 );
 
-YouTube Demo : https://www.youtube.com/watch?v=t_7Om3FpsFU
+🎥 Demo Video
 
-This video shows:
+📺 YouTube:
+https://www.youtube.com/watch?v=t_7Om3FpsFU
+
+The demo shows:
 
 5 concurrent orders
 
@@ -231,24 +256,23 @@ DEX routing decisions
 
 Queue concurrency
 
-Final DB persistence
+Final database persistence
 
-
-Summary :-
+📌 Summary
 
 This project demonstrates:
 
-Production-grade backend design
+Production-grade backend architecture
 
-Fault-tolerant execution
+Fault-tolerant execution pipelines
 
-Real-time streaming
+Real-time streaming via WebSockets
 
-Scalable concurrency
+Scalable concurrency with queues
 
 Clear extensibility to real DEX execution
 
-Author
+👤 Author
 
 Built by Ankur
-For backend / systems / blockchain-adjacent roles.
+For backend, systems, and blockchain-adjacent engineering roles.
