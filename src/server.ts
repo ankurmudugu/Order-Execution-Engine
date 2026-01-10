@@ -12,8 +12,15 @@ async function startServer() {
   await app.register(orderRoutes);
   await app.register(orderSocket);
 
-  await app.listen({ port: 3000 });
-  console.log("Server running at http://localhost:3000");
+  const port = Number(process.env.PORT) || 3000;
+  const host = "0.0.0.0";
+
+  await app.listen({ port, host });
+
+
+  // await app.listen({ port: 3000 });
+  app.log.info(`Server running on ${host}:${port}`);
+
 }
 
 startServer();
