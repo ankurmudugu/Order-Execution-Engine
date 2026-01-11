@@ -34,7 +34,7 @@ async function updateOrder(
 
 export const orderWorker = new Worker(
   "orders",
-  async job => {
+  async (job) => {
     const order = job.data as Order;
 
     try {
@@ -46,26 +46,22 @@ export const orderWorker = new Worker(
         status: "routing",
       });
 
-      await updateOrder(order.orderId, {
-        status: "routing",
-      });
+      await updateOrder(order.orderId, { status: "routing" });
 
       const quote = await selectBestRoute(order);
 
       /**
-       * 2️⃣ BUILDING TRANSACTION
+       * 2️⃣ BUILDING
        */
       orderEvents.emit("order-update", {
         orderId: order.orderId,
-        status: "building", 
-      });
-
-      await updateOrder(order.orderId, {
         status: "building",
       });
 
+      await updateOrder(order.orderId, { status: "building" });
+
       /**
-       * 3️⃣ EXECUTE (mock swap)
+       * 3️⃣ EXECUTE (mock)
        */
       const txHash = await quote.execute();
 
@@ -74,7 +70,7 @@ export const orderWorker = new Worker(
        */
       orderEvents.emit("order-update", {
         orderId: order.orderId,
-        status: "submitted", 
+        status: "submitted",
         result: {
           dex: quote.dex,
           txHash,
@@ -90,7 +86,7 @@ export const orderWorker = new Worker(
       /**
        * Simulate confirmation latency
        */
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2000));
 
       /**
        * 5️⃣ CONFIRMED
@@ -115,24 +111,20 @@ export const orderWorker = new Worker(
       const isFinalAttempt =
         job.attemptsMade + 1 === job.opts.attempts;
 
-      /**
-       * 6️⃣ FAILED (only after last retry)
-       */
       if (isFinalAttempt) {
         orderEvents.emit("order-update", {
           orderId: order.orderId,
           status: "failed",
-          reason: err.message ?? "unknown error",
+          reason: err?.message ?? "unknown error",
         });
 
         await updateOrder(order.orderId, {
           status: "failed",
-          failure_reason: err.message ?? "unknown error",
+          failure_reason: err?.message ?? "unknown error",
         });
       }
 
-      // Important: rethrow so BullMQ handles retries
-      throw err;
+      throw err; // allow BullMQ retries
     }
   },
   {
@@ -140,3 +132,11 @@ export const orderWorker = new Worker(
     concurrency: 10,
   }
 );
+
+orderWorker.on("ready", () => {
+  console.log("🟢 Order worker ready");
+});
+
+orderWorker.on("failed", (job, err) => {
+  console.error(`❌ Job ${job?.id} failed`, err);
+});
