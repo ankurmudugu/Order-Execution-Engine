@@ -24,7 +24,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
           body.inputMint,
           body.outputMint,
           body.amountIn,
-          "pending",
+          "received",
         ]
       );
 
