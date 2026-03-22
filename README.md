@@ -288,6 +288,5 @@ Clean separation of API & worker
 Clear path to real on-chain execution
 
 👤 Author
-
 Ankur
-Built for backend, distributed systems, and blockchain-adjacent engineering roles.
+
